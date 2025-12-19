@@ -1,0 +1,55 @@
+services:
+  # MySQL database
+  pki:
+    build:
+      context: ./pki
+    volumes:
+      - ./pki/output:/pki:rw
+    healthcheck:
+      test: ["CMD-SHELL", "stat /pki/server.crt"]
+      interval: 5s
+      retries: 20
+      start_period: 2s
+      timeout: 120s
+  mysql:
+    image: "mysql:8"
+    depends_on:
+      pki:
+        condition: service_completed_successfully
+    environment:
+      MYSQL_ROOT_PASSWORD: "root"
+      MYSQL_DATABASE: "app"
+      MYSQL_USER: "app"
+      MYSQL_PASSWORD: "app"
+    volumes:
+      - ./pki/output:/pki:ro
+    ports:
+      - "12090:3306"
+    command:
+      [
+        "--general_log=1",
+        "--general_log_file=/var/log/mysql/general.log",
+        "--slow_query_log=1",
+        "--ssl-ca=/pki/ca.crt",
+        "--ssl-cert=/pki/server.crt",
+        "--ssl-key=/pki/server.key",
+      ]
+  # Flyway schema migrations and initial user creation
+  flyway:
+    image: flyway/flyway:7
+    volumes:
+      - ./pki/output:/pki:ro
+      - ./flyway/migrations:/flyway/sql:ro
+    depends_on:
+      - mysql
+    environment:
+      - REDGATE_DISABLE_TELEMETRY=1
+    command:
+      [
+        "-url=jdbc:mysql://mysql:3306",
+        "-user=root",
+        "-schemas=app",
+        "-password=root",
+        "-connectRetries=100",
+        "migrate",
+      ]
