@@ -1,0 +1,36 @@
+services:
+  # DB (uses built-in self-signed certificate)
+  db:
+    image: postgres
+    volumes:
+      - ./postgresql:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_DB=app
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - MYAPP_USERNAME=app
+      - MYAPP_PASSWORD=app
+    ports:
+      - 12090:5432
+    command: |
+      -c ssl=on
+      -c ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+      -c ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+  # DB Migrations
+  flyway:
+    depends_on:
+      - db
+    image: flyway/flyway
+    entrypoint: bash -c 'flyway migrate && bash'
+    volumes:
+      - ./flyway/migrations:/flyway/sql
+    tty: true
+    stdin_open: true
+    environment:
+      - FLYWAY_URL=jdbc:postgresql://db:5432/app
+      - FLYWAY_USER=root
+      - FLYWAY_SCHEMAS=app
+      - FLYWAY_PASSWORD=root
+      - FLYWAY_CONNECT_RETRIES=100
+      - FLYWAY_LOCATIONS=filesystem:/flyway/sql
+      - REDGATE_DISABLE_TELEMETRY=1

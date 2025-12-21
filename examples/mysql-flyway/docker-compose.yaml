@@ -36,7 +36,7 @@ services:
       ]
   # Flyway schema migrations and initial user creation
   flyway:
-    image: flyway/flyway:7
+    image: flyway/flyway
     volumes:
       - ./pki/output:/pki:ro
       - ./flyway/migrations:/flyway/sql:ro
@@ -44,9 +44,10 @@ services:
       - mysql
     environment:
       - REDGATE_DISABLE_TELEMETRY=1
+      - JAVA_ARGS=-Djavax.net.ssl.trustStore=/pki/server.jks -Djavax.net.ssl.trustStorePassword=password
     command:
       [
-        "-url=jdbc:mysql://mysql:3306",
+        "-url=jdbc:mysql://mysql:3306?useSSL=true&",
         "-user=root",
         "-schemas=app",
         "-password=root",
